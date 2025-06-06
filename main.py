@@ -1,51 +1,52 @@
 import pandas as pd
-import sys
 
-def main(scores_file, students_file, output_file):
-    """
-    Merge two sources (scores and students) by RollNumber to create a final Excel sheet.
+def merge_scores(
+    raw_exam_path: str,
+    template_path: str,
+    output_path: str,
+    raw_sheet_name: str = "Result",
+    template_sheet_name: str = None
+):
+    try:
+        raw_df = pd.read_excel(raw_exam_path, sheet_name=raw_sheet_name)
+    except ValueError:
+        raw_df = pd.read_excel(raw_exam_path, sheet_name=0)
 
-    Arguments:
-    - scores_file:   Path to an Excel file containing exactly 2 columns: [RollNumber, Mark].
-    - students_file: Path to an Excel file containing at least 3 columns: [Class, RollNumber, FullName].
-    - output_file:   Desired path/name of the resulting Excel file with columns [Class, RollNumber, FullName, Mark, Note].
-    """
+    if "Login" not in raw_df.columns or "Mark(10)" not in raw_df.columns:
+        raise KeyError(
+            f"❌ File raw exam phải có cột 'Login' và 'Mark(10)'.\n"
+            f"  Các cột hiện có: {list(raw_df.columns)}"
+        )
 
- 
-    scores_df   = pd.read_excel(scores_file)
-    students_df = pd.read_excel(students_file)
+    raw_marks = raw_df[["Login", "Mark(10)"]].copy()
+    raw_marks.columns = ["RollNumber", "Mark"]
 
-    scores_df = scores_df.iloc[:, 0:2].copy()
-    scores_df.columns = ["RollNumber", "Mark"]
+    if template_sheet_name is None:
+        template_df = pd.read_excel(template_path)
+    else:
+        try:
+            template_df = pd.read_excel(template_path, sheet_name=template_sheet_name)
+        except ValueError:
+            template_df = pd.read_excel(template_path, sheet_name=0)
 
-   
-    students_df = students_df.iloc[:, 0:3].copy()
-    students_df.columns = ["Class", "RollNumber", "FullName"]
+    required_cols = ["Class", "RollNumber", "Mark", "Note"]
+    missing_cols = [col for col in required_cols if col not in template_df.columns]
+    if missing_cols:
+        raise KeyError(
+            f"❌ File template phải có các cột: {required_cols}\n"
+            f"  Thiếu: {missing_cols}\n"
+            f"  Các cột hiện tại: {list(template_df.columns)}"
+        )
 
-    
-    merged = pd.merge(
-        students_df,
-        scores_df,
-        on="RollNumber",
-        how="left"  # Keeps all rows from students_df; if no matching score, Mark will be NaN
-    )
-
-  
-    merged["Note"] = ""
-    merged = merged[["Class", "RollNumber", "FullName", "Mark", "Note"]]
-
-   
-    merged.to_excel("/mnt/data/BDI302c_FINAL-UP_FUMM.xlsx", index=False, sheet_name="BDI302c_FINAL-UP_FUMM")
-    print(f"➡️ File merged has been saved to: ")
-
+    mark_lookup = raw_marks.set_index("RollNumber")["Mark"].to_dict()
+    template_df["Mark"] = template_df["RollNumber"].map(mark_lookup)
+    template_df.to_excel(output_path, index=False)
+    print(f"✅ Merged file has been saved to: {output_path}")
 
 if __name__ == "__main__":
-    
-    if len(sys.argv) != 4:
-        print("❌ Usage: python merge_excel.py <scores_file.xlsx> <students_file.xlsx> <output_file.xlsx>")
-        sys.exit(1)
-
-    scores_path   = sys.argv[1]
-    students_path = sys.argv[2]
-    output_path   = sys.argv[3]
-    main(scores_path, students_path, output_path)
+    merge_scores(
+        raw_exam_path=r"C:\Users\patmy\Downloads\Excel_For_Mark\BDI302c_FE.xlsx",
+        template_path=r"C:\Users\patmy\Downloads\Excel_For_Mark\BDI302c_FINAL-UP_FUMM.xlsx",
+        output_path=r"C:\Users\patmy\Downloads\Excel_For_Mark\Result\BDI302c_FINAL-UP_FUMM_filled.xlsx",
+        raw_sheet_name="Result"
+    )
