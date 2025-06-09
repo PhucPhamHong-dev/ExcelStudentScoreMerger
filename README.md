@@ -70,7 +70,7 @@ excel-score-merger/
 
 - **app.py** – Main Flask application  
 - **templates/index.html** – HTML form for file uploads  
-- **requirements.txt** – (optional) list of Python packages
+
 
 ---
 

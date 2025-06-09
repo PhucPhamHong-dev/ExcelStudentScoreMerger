@@ -3,26 +3,45 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Merge Exam Scores</title>
+  <title>Trộn Điểm Thi</title>
   <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center">
   <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-md">
-    <h1 class="text-2xl font-bold mb-6 text-center">Merge Exam Scores</h1>
+    <h1 class="text-2xl font-bold mb-4 text-center">Merge Exam Mark</h1>
+
+    <!-- Hướng dẫn yêu cầu file -->
+    <div class="bg-blue-50 border border-blue-200 text-blue-700 p-3 rounded mb-4">
+      <p class="font-semibold mb-1">Yêu cầu file nhập vào:</p>
+      <ul class="list-disc list-inside text-sm">
+        <li>File <strong>Điểm gốc</strong> (Raw Exam) cần chứa cột <code>Login</code> và <code>Mark(10)</code> trong bất kỳ sheet nào.</li>
+        <li>File <strong>Danh sách thí sinh</strong> (Excel) phải có các cột: <code>Class</code>, <code>RollNumber</code>, <code>Mark</code> và <code>Note</code>.</li>
+      </ul>
+    </div>
+
     {% if error %}
       <div class="bg-red-100 text-red-700 p-3 rounded mb-4">{{ error }}</div>
     {% endif %}
-    <form method="POST" enctype="multipart/form-data" class="space-y-4">
+    <form method="POST" enctype="multipart/form-data" class="space-y-6">
+      <!-- File Đề Thi Gốc -->
       <div>
-        <label class="block text-gray-700">File Raw Exam (Excel)</label>
-        <input type="file" name="raw_exam" accept=".xlsx" class="mt-1 block w-full text-sm text-gray-600"/>
+        <label class="block text-gray-700 mb-1">File Điểm Gốc (Excel)</label>
+        <div class="flex items-center">
+          <button type="button" onclick="document.getElementById('raw_exam').click()" class="bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition">Tải file</button>
+          <span id="raw_name" class="ml-4 text-gray-600">Chưa chọn file nào</span>
+        </div>
+        <input id="raw_exam" type="file" name="raw_exam" accept=".xlsx" class="hidden" onchange="document.getElementById('raw_name').textContent = this.files[0]?.name || 'Chưa chọn file nào'" />
       </div>
+      <!-- File Mẫu -->
       <div>
-        <label class="block text-gray-700">File Template (Excel)</label>
-        <input type="file" name="template" accept=".xlsx" class="mt-1 block w-full text-sm text-gray-600"/>
+        <label class="block text-gray-700 mb-1">Danh sách thí sinh (Excel)</label>
+        <div class="flex items-center">
+          <button type="button" onclick="document.getElementById('template').click()" class="bg-blue-500 text-white py-2 px-4 rounded-md hover:bg-blue-600 transition">Tải file</button>
+          <span id="template_name" class="ml-4 text-gray-600">Chưa chọn file nào</span>
+        </div>
+        <input id="template" type="file" name="template" accept=".xlsx" class="hidden" onchange="document.getElementById('template_name').textContent = this.files[0]?.name || 'Chưa chọn file nào'" />
       </div>
-      <button type="submit"
-              class="w-full bg-blue-500 text-white py-2 rounded-2xl hover:bg-blue-600 transition">
+      <button type="submit" class="w-full bg-green-500 text-white py-2 rounded-2xl hover:bg-green-600 transition">
         Tạo file kết quả
       </button>
     </form>
