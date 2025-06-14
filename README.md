@@ -1,52 +1,54 @@
-# Merge Exam Scores
+# Merge Exam Mark Web Application
 
-A simple Flask web app that merges raw exam scores from a system‑exported Excel file into your predefined Excel template and produces a filled‑in result file.
+## Overview
 
----
+This is a Flask-based web application for merging raw exam scores into standardized Excel templates. The project features a modern, user-friendly front-end built with TailwindCSS and AlpineJS, and client-side validation using SheetJS. Raw score data and multiple subject templates are uploaded through a clean interface; the app then produces filled result files packaged as a single ZIP.
 
-## 🚀 Features
+## Features
 
-- **Web upload form**  
-  Upload both your raw exam file and your template file via a clean TailwindCSS interface.
+- **User-Friendly Interface**  
+  - TailwindCSS styling for a responsive and professional look.  
+  - AlpineJS for dynamic UI interactions: file pickers, real-time status banners, and error handling.
 
-- **Double “already processed” guard**  
-  1. Rejects files whose name ends with `_filled` or `_merged`.  
-  2. Rejects any Excel containing a hidden sheet `_processed_marker`.
+- **Flexible File Upload**  
+  - Upload a single **Raw Exam** `.xlsx` file.  
+  - Upload multiple **Template** `.xlsx` files or an entire folder.  
+  - Ability to add or remove templates before processing.
 
-- **Automatic merge logic**  
-  - Reads raw data from the sheet named **Result** (or the first sheet if “Result” is absent).  
-  - Extracts `Login` and `Mark(10)` columns, renames them to `RollNumber` & `Mark`.  
-  - Reads your template (must contain `Class`, `RollNumber`, `Mark`, `Note`) and maps each `RollNumber` → `Mark`.
+- **Client-Side Validation**  
+  - **SheetJS** parses the Raw Exam file in the browser to extract all `SubjectCode` values.  
+  - Real-time detection of **missing** or **extra** template files, with warnings displayed before submission.  
+  - “Ready” banner appears when all required templates are present.
 
-- **Hidden marker sheet**  
-  Outputs a sheet called `_processed_marker` (veryHidden) to prevent re‑processing the same file.
+- **Server-Side Processing**  
+  - Flask handles file uploads and serves the HTML form.  
+  - `pandas` + `openpyxl` perform the merge logic:
+    1. Normalize raw data: rename `GroupName` → `Class`, uppercase `RollNumber`.  
+    2. For each `SubjectCode`, match `RollNumber` to the `Login` column in the template.  
+    3. Output only five columns: `Class`, `RollNumber`, `FullName`, `Mark`, `Note`.  
+  - All filled templates are saved and zipped into `FE_Merge.zip` for download.
 
-- **User‑friendly output**  
-  Downloads a file named `<template_basename>_filled.xlsx` ready for final reporting.
-
----
-
-## 🔧 Installation
+## Installation
 
 ### Prerequisites
 
-- Python 3.8 or higher  
-- pip
+- Python 3.8+  
+- `pip`
 
-### Steps
+### Setup
 
-1. **Clone this repository**  
+1. **Clone the repository**  
    ```bash
-   git clone https://github.com/your‑username/excel-score-merger.git
-   cd excel-score-merger
+   git clone https://github.com/your-username/exam-merge-app.git
+   cd exam-merge-app
    ```
 
-2. **Create & activate a virtual environment**  
+2. **Create and activate a virtual environment**  
    ```bash
    python -m venv venv
    # Windows
    venv\Scripts\activate
-   # macOS / Linux
+   # macOS/Linux
    source venv/bin/activate
    ```
 
@@ -55,87 +57,33 @@ A simple Flask web app that merges raw exam scores from a system‑exported Exce
    pip install Flask pandas openpyxl
    ```
 
----
-
-## 🗂️ Project Structure
+## Project Structure
 
 ```
-excel-score-merger/
+exam-merge-app/
 ├── app.py
 ├── templates/
-│   └── index.html      # Upload form (TailwindCSS)
-├── requirements.txt    # (optional) pin your dependencies here
-└── README.md           # You’re reading it!
+│   └── index.html
+├── static/
+│   └── (optional CSS/JS assets)
+├── README.md
+└── requirements.txt
 ```
 
-- **app.py** – Main Flask application  
-- **templates/index.html** – HTML form for file uploads  
+- **app.py**: Flask backend and merge logic  
+- **templates/index.html**: Front-end form with TailwindCSS, AlpineJS, and SheetJS  
 
+## Running the Application
 
----
-
-## ▶️ Running the App
-
-1. Activate your virtual environment (if not already).  
-2. Start the Flask server:
-   ```bash
-   python app.py
-   ```
-3. Open your browser at `http://localhost:5000`.  
-4. Upload **Raw Exam** and **Template** files, then click **Tạo file kết quả** to download the merged Excel.
-
----
-
-## ⚙️ How It Works
-
-1. **Upload & Validation**  
-   - Ensures both files are provided.  
-   - Checks filenames do not end with `_filled`/`_merged`.  
-   - Scans for a hidden `_processed_marker` sheet.
-
-2. **Read Excel Data**  
-   - **Raw file**: tries sheet `"Result"`, falling back to the first sheet.  
-   - **Template file**: always reads the first sheet.
-
-3. **Merge Logic**  
-   ```python
-   raw_marks = raw_df[["Login", "Mark(10)"]].copy()
-   raw_marks.columns = ["RollNumber", "Mark"]
-   lookup = raw_marks.set_index("RollNumber")["Mark"].to_dict()
-   template_df["Mark"] = template_df["RollNumber"].map(lookup)
-   ```
-
-4. **Write Output**  
-   - Writes the merged DataFrame to a new Excel.  
-   - Creates a veryHidden sheet `_processed_marker`.  
-   - Returns the file named `<template_basename>_filled.xlsx`.
-
----
-
-## 📦 Dependencies
-
-- **Flask** – web framework  
-- **pandas** – data manipulation & Excel read/write  
-- **openpyxl** – Excel engine for pandas  
-
-Install with:
 ```bash
-pip install Flask pandas openpyxl
+python app.py
 ```
 
----
+- The server runs at `http://localhost:5000`.  
+- Open the URL in your browser, upload the **Raw Exam** file and select your **Template** files or folder.  
+- The UI will validate template coverage before enabling the **Create Result** button.  
+- Click the button to download `FE_Merge.zip`, containing all merged Excel files.
 
-## 🤝 Contributing
+## License
 
-Contributions, issues and feature requests are welcome!  
-1. Fork the repo  
-2. Create a feature branch (`git checkout -b feature/YourFeature`)  
-3. Commit your changes (`git commit -m 'Add some feature'`)  
-4. Push to the branch (`git push origin feature/YourFeature`)  
-5. Open a Pull Request
-
----
-
-## 📄 License
-
-This project is provided “as‑is” under no specific license. Feel free to copy, adapt, and use for personal or educational purposes.
+This project is provided “as-is” for educational and personal use.
