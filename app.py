@@ -1,110 +1,140 @@
-from flask import Flask, request, send_file, flash, render_template
-import os, tempfile, shutil, zipfile
+import os
+import zipfile
+from tempfile import TemporaryDirectory
+from io import BytesIO
+from flask import Flask, request, send_file, render_template, abort
 import pandas as pd
+from collections import defaultdict
 
-app = Flask(__name__)
-app.config['SECRET_KEY'] = 'change_this_to_secure'
-UPLOAD_FOLDER = 'temp'
-OUTPUT_FOLDER = 'output'
-ALLOWED_RAW_EXT = ('.xls', '.xlsx')
+# Initialize Flask application: serve static files from 'static/', templates from 'templates/'
+app = Flask(__name__, static_folder='static', template_folder='templates')
+app.config['SECRET_KEY'] = 'change_this_to_secure'  # Replace with a strong secret key in production
 
-def allowed_raw(name):
-    return name.lower().endswith(ALLOWED_RAW_EXT)
+@app.route('/', methods=['GET'])
+def form():
+    """
+    Display the upload form (index.html should be inside the 'templates/' directory)
+    """
+    return render_template('index.html')
 
-@app.route('/', methods=['GET', 'POST'])
+@app.route('/', methods=['POST'])
 def index():
-    error = None
-    if request.method == 'POST':
-        raw       = request.files.get('raw_exam')
-        tpl_files = request.files.getlist('templates')
+    """
+    Handle file uploads for raw exam data and template files.
+    Use a single TemporaryDirectory for all temporary storage (raw and filled files).
+    Generate filled Excel files named by exam code with suffixes for duplicates,
+    package them into an in-memory ZIP containing only the filled files, and send to the client.
+    All temporary files are cleaned up automatically when done.
+    """
+    raw_file = request.files.get('raw_exam')
+    tpl_files = request.files.getlist('templates')
 
-        # 1) Validate uploads
-        if not raw or not allowed_raw(raw.filename):
-            error = 'Vui lòng tải lên file Điểm Gốc (.xlsx)'
-            return render_template('index.html', error=error)
-        if not tpl_files:
-            error = 'Vui lòng chọn ít nhất một file Templates'
-            return render_template('index.html', error=error)
+    # Validate raw exam file
+    if not raw_file or not raw_file.filename.lower().endswith(('.xls', '.xlsx')):
+        return render_template('index.html', error='Vui lòng tải lên file Điểm Gốc hợp lệ (.xls/.xlsx)')
+    # Validate at least one template
+    if not tpl_files:
+        return render_template('index.html', error='Vui lòng chọn ít nhất một file Excel')
 
-        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-        os.makedirs(OUTPUT_FOLDER, exist_ok=True)
+    # Use one TemporaryDirectory for both reading raw and storing outputs
+    with TemporaryDirectory() as workdir:
+        counts = defaultdict(int)
+        stored_codes = []
+        output_files = []  # track generated filenames
 
-        # 2) Read & normalize raw
-        raw_path = os.path.join(UPLOAD_FOLDER, 'raw_exam.xlsx')
-        raw.save(raw_path)
-        df_raw = pd.read_excel(raw_path, dtype=str)
-        df_raw.rename(columns={'GroupName':'Class'}, inplace=True)
-        df_raw['RollNumber']  = df_raw['RollNumber'].str.upper()
-        df_raw['SubjectCode'] = df_raw['SubjectCode'].str.upper()
-        df_raw['SlotType']    = df_raw['SlotType'].fillna('')
+        # Save raw file into temporary directory for consistent pandas reading
+        raw_path = os.path.join(workdir, 'raw_exam.xlsx')
+        raw_file.save(raw_path)
 
-        # 3) Extract Exam Code
-        tempdir = tempfile.mkdtemp()
-        templates_info=[]
-        for fs in tpl_files:
-            if not fs.filename.lower().endswith('.xlsx'):
-                flash(f'⚠️ Bỏ qua file không phải .xlsx: "{fs.filename}"','warning')
+        # Process each template
+        for tpl in tpl_files:
+            if not tpl.filename.lower().endswith('.xlsx'):
                 continue
-            dest=os.path.join(tempdir,fs.filename)
-            fs.save(dest)
-            exam_code=None; sheet_df=None
-            with pd.ExcelFile(dest) as xls:
-                for sh in xls.sheet_names:
-                    tmp=xls.parse(sh,dtype=str)
-                    cols=[c.strip() for c in tmp.columns]
-                    if {'Exam Code','Login','Mark(10)'}.issubset(cols):
-                        vals=(tmp['Exam Code']
-                                 .dropna()
-                                 .astype(str)
-                                 .str.strip()
-                                 .str.upper())
-                        if not vals.empty:
-                            rawc=vals.iloc[0]; exam_code=rawc.split('_')[0]; sheet_df=tmp
-                        break
-            if exam_code is None:
-                flash(f'⚠️ Template "{fs.filename}" thiếu cột "Exam Code"/"Login"/"Mark(10)"','warning')
-            else:
-                templates_info.append({'code':exam_code,'df':sheet_df})
 
-        # 4) missing/extra warnings
-        raw_codes=set(df_raw['SubjectCode'])
-        tpl_codes=set(t['code'] for t in templates_info)
-        missing=sorted(raw_codes - tpl_codes)
-        extra=sorted(tpl_codes - raw_codes)
-        if missing: flash('⚠️ Thiếu template cho mã môn: '+', '.join(missing),'warning')
-        if extra:   flash('⚠️ Có template thừa cho mã môn: '+', '.join(extra),'warning')
+            tpl_path = os.path.join(workdir, tpl.filename)
+            tpl.save(tpl_path)
 
-        # 5) Merge available only
-        for info in templates_info:
-            code=info['code']; tpl_df=info['df']
-            sub=df_raw[df_raw['SubjectCode']==code]
-            if sub.empty:
-                flash(f'⚠️ Không có dữ liệu cho mã môn {code}','warning')
-                continue
-            tpl_df['Login']=tpl_df['Login'].str.upper()
-            merged=pd.merge(sub, tpl_df, left_on='RollNumber', right_on='Login', how='right')
-            out=pd.DataFrame({
-                'Class':merged['Class'],
-                'RollNumber':merged['RollNumber'],
-                'FullName':merged['FullName'],
-                'Mark':merged['Mark(10)'],
-                'Note':merged['SlotType'].replace('',pd.NA)
-            })
-            name=f"{code}_filled.xlsx"
-            out.to_excel(os.path.join(OUTPUT_FOLDER,name),index=False)
-            flash(f'✅ Đã tạo file: {name}','success')
+            # process_template now takes file paths as input
+            code_only, df_out = process_template(raw_path, tpl_path)
+            counts[code_only] += 1
+            suffix = f"({counts[code_only]})" if counts[code_only] > 1 else ''
+            filename = f"{code_only}_filled{suffix}.xlsx"
+            stored_codes.append(code_only)
 
-        # 6) cleanup + zip
-        shutil.rmtree(tempdir,ignore_errors=True)
-        zip_out=os.path.join(OUTPUT_FOLDER,'FE_Merge.zip')
-        with zipfile.ZipFile(zip_out,'w',zipfile.ZIP_DEFLATED) as zf:
-            for fn in os.listdir(OUTPUT_FOLDER):
-                if fn.endswith('_filled.xlsx'):
-                    zf.write(os.path.join(OUTPUT_FOLDER,fn),arcname=fn)
+            # write filled file
+            dest_path = os.path.join(workdir, filename)
+            df_out.to_excel(dest_path, index=False)
+            output_files.append(filename)
 
-        return send_file(zip_out,as_attachment=True)
+        # create ZIP archive on disk within temporary directory
+        disk_zip = os.path.join(workdir, 'result.zip')
+        with zipfile.ZipFile(disk_zip, 'w', zipfile.ZIP_DEFLATED) as zf:
+            for fn in output_files:
+                zf.write(os.path.join(workdir, fn), arcname=fn)
 
-    return render_template('index.html', error=error)
+        # load ZIP into memory buffer
+        mem_zip = BytesIO()
+        with open(disk_zip, 'rb') as f:
+            mem_zip.write(f.read())
+        mem_zip.seek(0)
 
-if __name__=='__main__':
+        # choose download name
+        distinct = set(stored_codes)
+        download_name = f"{list(distinct)[0]}_filled.zip" if len(distinct) == 1 else 'FE_Merge.zip'
+
+        return send_file(
+            mem_zip,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=download_name
+        )
+
+
+def process_template(raw_path, tpl_path):
+    """
+    Read raw exam and template from file paths,
+    extract exam code, merge data, and return (code, DataFrame).
+    """
+    df_raw = pd.read_excel(raw_path, dtype=str)
+    df_tpl = pd.read_excel(tpl_path, dtype=str)
+
+    # standardize raw data
+    df_raw.rename(columns={'GroupName':'Class'}, inplace=True)
+    df_raw['RollNumber'] = df_raw['RollNumber'].str.upper().str.strip()
+    df_raw['SubjectCode'] = df_raw['SubjectCode'].str.upper().str.strip()
+    df_raw['SlotType'] = df_raw.get('SlotType','').fillna('')
+
+    # trim template headers
+    df_tpl.rename(columns=lambda c: c.strip(), inplace=True)
+    required = {'Exam Code','Login','Mark(10)'}
+    if not required.issubset(df_tpl.columns):
+        abort(400, description='File Exel thiếu cột bắt buộc: ' + ', '.join(required))
+
+    # extract code
+    codes = df_tpl['Exam Code'].dropna().astype(str).str.strip().str.upper()
+    if codes.empty:
+        abort(400, description="Không tìm thấy giá trị trong cột 'Exam Code'")
+    code_full = codes.iloc[0]
+    code_only = code_full.split('_')[0]
+
+    # merge data
+    df_tpl['Login'] = df_tpl['Login'].str.upper().str.strip()
+    merged = pd.merge(
+        df_raw[df_raw['SubjectCode'] == code_only],
+        df_tpl,
+        left_on='RollNumber', right_on='Login', how='right'
+    )
+
+    # build output DataFrame
+    df_out = pd.DataFrame({
+        'Class': merged['Class'],
+        'RollNumber': merged['RollNumber'],
+        'FullName': merged.get('FullName', merged.get('Login', '')),
+        'Mark': merged['Mark(10)'],
+        'Note': merged['SlotType'].replace('', pd.NA)
+    })
+    return code_only, df_out
+
+# Run Flask app
+if __name__ == '__main__':
     app.run(debug=True)

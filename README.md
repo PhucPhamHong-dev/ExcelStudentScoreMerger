@@ -1,89 +1,122 @@
-# Merge Exam Mark Web Application
+# 📊 Merge Exam Mark Web Application
 
-## Overview
 
-This is a Flask-based web application for merging raw exam scores into standardized Excel templates. The project features a modern, user-friendly front-end built with TailwindCSS and AlpineJS, and client-side validation using SheetJS. Raw score data and multiple subject templates are uploaded through a clean interface; the app then produces filled result files packaged as a single ZIP.
+---
 
-## Features
+## 🚀 Overview
 
-- **User-Friendly Interface**  
-  - TailwindCSS styling for a responsive and professional look.  
-  - AlpineJS for dynamic UI interactions: file pickers, real-time status banners, and error handling.
+A **Flask**-based web application that merges raw exam scores into standardized Excel templates. Featuring a responsive front-end built with **TailwindCSS** and **AlpineJS**, plus client-side validation via **SheetJS**, it delivers filled result files in a clean ZIP archive.
 
-- **Flexible File Upload**  
-  - Upload a single **Raw Exam** `.xlsx` file.  
-  - Upload multiple **Template** `.xlsx` files or an entire folder.  
-  - Ability to add or remove templates before processing.
+---
 
-- **Client-Side Validation**  
-  - **SheetJS** parses the Raw Exam file in the browser to extract all `SubjectCode` values.  
-  - Real-time detection of **missing** or **extra** template files, with warnings displayed before submission.  
-  - “Ready” banner appears when all required templates are present.
+## 📑 Table of Contents
 
-- **Server-Side Processing**  
-  - Flask handles file uploads and serves the HTML form.  
-  - `pandas` + `openpyxl` perform the merge logic:
-    1. Normalize raw data: rename `GroupName` → `Class`, uppercase `RollNumber`.  
-    2. For each `SubjectCode`, match `RollNumber` to the `Login` column in the template.  
-    3. Output only five columns: `Class`, `RollNumber`, `FullName`, `Mark`, `Note`.  
-  - All filled templates are saved and zipped into `FE_Merge.zip` for download.
+* [Features](#-features)
+* [Installation](#-installation)
+* [Project Structure](#-project-structure)
+* [Usage](#-usage)
+* [Changelog](#-changelog)
+* [License](#-license)
 
-## Installation
+---
+
+## ✨ Features
+
+1. **User-Friendly Interface**
+
+   * Responsive styling with TailwindCSS.
+   * Dynamic file pickers, status banners, and error messages powered by AlpineJS.
+
+2. **Flexible File Upload**
+
+   * Single **Raw Exam** `.xlsx` upload.
+   * Multiple **Template** `.xlsx` files or folder import.
+   * Add/remove templates before processing.
+
+3. **Client-Side Validation**
+
+   * Extract `SubjectCode` values in-browser with SheetJS.
+   * Real-time warnings for **missing** or **extra** templates.
+   * “Ready” banner when all required templates are detected.
+
+4. **Server-Side Processing**
+
+   * Flask handles uploads and serves the web form.
+   * **Pandas** + **OpenPyXL** merge logic:
+
+     1. Normalize raw data (`GroupName` → `Class`, uppercase/trimming fields).
+     2. Match `RollNumber` to `Login` in each template.
+     3. Output columns: `Class`, `RollNumber`, `FullName`, `Mark`, `Note`.
+   * Uses a single **TemporaryDirectory** for all file IO—no leftover folders.
+   * Auto-deduplicates filenames by appending `(2)`, `(3)`, etc. for repeated `exam_code`.
+   * Zips **only** the generated `_filled.xlsx` results (inputs excluded).
+   * Dynamic ZIP naming:
+
+     * Single exam: `<exam_code>_filled.zip`
+     * Multiple exams: `FE_Merge.zip`
+
+---
+
+## 🛠️ Installation
 
 ### Prerequisites
 
-- Python 3.8+  
-- `pip`
+* Python **3.8** or higher
+* **pip** package manager
 
-### Setup
-
-1. **Clone the repository**  
-   ```bash
-   git clone https://github.com/your-username/exam-merge-app.git
-   cd exam-merge-app
-   ```
-
-2. **Create and activate a virtual environment**  
-   ```bash
-   python -m venv venv
-   # Windows
-   venv\Scripts\activate
-   # macOS/Linux
-   source venv/bin/activate
-   ```
-
-3. **Install dependencies**  
-   ```bash
-   pip install Flask pandas openpyxl
-   ```
-
-## Project Structure
-
-```
-exam-merge-app/
-├── app.py
-├── templates/
-│   └── index.html
-├── static/
-│   └── (optional CSS/JS assets)
-├── README.md
-└── requirements.txt
-```
-
-- **app.py**: Flask backend and merge logic  
-- **templates/index.html**: Front-end form with TailwindCSS, AlpineJS, and SheetJS  
-
-## Running the Application
+### Setup Steps
 
 ```bash
-python app.py
+# Clone repository
+git clone https://github.com/your-username/exam-merge-app.git
+cd exam-merge-app
+
+# Create & activate virtual environment
+python -m venv venv
+# Windows: venv\Scripts\activate
+# macOS/Linux: source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
 ```
 
-- The server runs at `http://localhost:5000`.  
-- Open the URL in your browser, upload the **Raw Exam** file and select your **Template** files or folder.  
-- The UI will validate template coverage before enabling the **Create Result** button.  
-- Click the button to download `FE_Merge.zip`, containing all merged Excel files.
+---
 
-## License
+## 📂 Project Structure
 
-This project is provided “as-is” for educational and personal use.
+```text
+exam-merge-app/
+├── app.py                 # Flask backend & merge logic
+├── requirements.txt       # Python dependencies
+├── templates/             # Jinja2 HTML templates
+│   └── index.html         # Main upload form
+├── static/                # CSS/JS assets (Tailwind, Alpine, SheetJS)
+└── CHANGELOG.md           # Version history & updates
+```
+
+---
+
+## 🎬 Usage
+
+1. **Start the server**:
+
+   ```bash
+   python app.py
+   ```
+2. Open your browser at `http://localhost:5000`.
+3. Upload your **Raw Exam** file (.xlsx).
+4. Select one or more **Template** files (or folder).
+5. Confirm the “Ready” banner, then click **Tạo file kết quả**.
+6. Download the generated ZIP archive.
+
+---
+
+## 📖 Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for details on recent updates.
+
+---
+
+## 📜 License
+
+This project is provided **as-is** for educational and personal use. No warranty is provided.
