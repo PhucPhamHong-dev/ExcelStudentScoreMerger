@@ -30,13 +30,13 @@
     </template>
     <template x-if="missingCodes.length">
       <div class="bg-yellow-100 text-yellow-800 p-3 rounded mb-4">
-        Thiếu template cho mã môn: 
+        Thiếu file Excel cho mã môn: 
         <span x-text="missingCodes.join(', ')"></span>
       </div>
     </template>
     <template x-if="extraCodes.length">
       <div class="bg-yellow-100 text-yellow-800 p-3 rounded mb-4">
-        Template thừa cho mã môn: 
+        Excel thừa cho mã môn: 
         <span x-text="extraCodes.join(', ')"></span>
       </div>
     </template>
@@ -213,11 +213,11 @@
             return;
           }
           if (!this.templates.length) {
-            this.error = 'Vui lòng chọn ít nhất một file Templates';
+            this.error = 'Vui lòng chọn ít nhất một file Excel';
             return;
           }
           if (this.invalidFiles.length) {
-            this.error = 'Một số file template không hợp lệ';
+            this.error = 'Một số file Excel không hợp lệ';
             return;
           }
           this.error = '';
