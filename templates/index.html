@@ -17,7 +17,7 @@
       <p class="font-semibold mb-2">Yêu cầu file nhập vào:</p>
       <ul class="list-disc list-inside text-sm">
         <li>File <strong>Điểm gốc</strong> (.xlsx) chứa cột: <code>RollNumber</code>, <code>SubjectCode</code>, <code>GroupName</code>, <code>FullName</code>, <code>SlotType</code>.</li>
-        <li>Folder hoặc nhiều file <strong>Templates</strong> (.xlsx), mỗi file phải có trong sheet cột <code>Exam Code</code>, <code>Login</code> &amp; <code>Mark(10)</code>.</li>
+        <li>Folder hoặc nhiều file <strong>Excel</strong> (.xlsx), mỗi file phải có trong sheet cột <code>Exam Code</code>, <code>Login</code> &amp; <code>Mark(10)</code>.</li>
       </ul>
     </div>
 
@@ -66,7 +66,7 @@
                           (templates.length ? 'bg-green-500' : 'bg-blue-500')">
             <span x-text="templates.length
                           ? 'Chọn thư mục (' + templates.length + ' file)'
-                          : 'Chọn thư mục Templates'"></span>
+                          : 'Chọn thư mục chứa danh sách điểm + môn thi'"></span>
           </button>
           <button type="button"
                   @click="$refs.extra.click()"
@@ -74,7 +74,7 @@
                           (templates.length ? 'bg-green-500' : 'bg-blue-500')">
             <span x-text="templates.length
                           ? 'Thêm file (' + templates.length + ')'
-                          : 'Chọn thêm file Templates'"></span>
+                          : 'Chọn thêm file Excel'"></span>
           </button>
         </div>
         <input x-ref="folder" type="file" accept=".xlsx" webkitdirectory directory multiple class="hidden"
