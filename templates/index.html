@@ -106,12 +106,13 @@
       </template>
 
       <!-- 4) Submit button -->
-      <button type="button"
-              @click="submit()"
-              :disabled="!rawLoaded || !templates.length || invalidFiles.length"
-              :class="(!rawLoaded || !templates.length || invalidFiles.length)
-                ? 'bg-gray-400 cursor-not-allowed w-full py-3 rounded-lg text-white'
-                : 'bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 w-full py-3 rounded-lg text-white'">
+      <button         type="button"
+        @click="submit()"
+        :disabled="!rawLoaded || !templates.length"
+        :class="(!rawLoaded || !templates.length)
+          ? 'bg-gray-400 cursor-not-allowed w-full py-3 rounded-lg text-white pointer-events-none'
+          : 'bg-gradient-to-r from-green-400 to-blue-500 hover:from-green-500 hover:to-blue-600 w-full py-3 rounded-lg text-white'"
+      >
         Tạo file kết quả
       </button>
     </div>
@@ -225,7 +226,7 @@
           fd.append('raw_exam', this.$refs.raw.files[0]);
           this.templates.forEach(t => fd.append('templates', t.file));
 
-          fetch('/', { method: 'POST', body: fd })
+          fetch('/', { method: 'POST', body: fd  })
             .then(r => {
               if (!r.ok) throw new Error('Server error');
               return r.blob();
