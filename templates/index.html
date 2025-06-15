@@ -6,127 +6,107 @@
   <title>Merge Exam Mark</title>
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js" defer></script>
-  <!-- SheetJS để đọc client-side -->
   <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen flex items-center justify-center">
-  <div class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-lg" x-data="templateUploader()">
+  <div x-data="templateUploader()" class="bg-white p-8 rounded-2xl shadow-lg w-full max-w-lg">
     <h1 class="text-2xl font-bold mb-4 text-center">Merge Exam Mark</h1>
 
-    <!-- Hướng dẫn -->
+    <!-- Instructions -->
     <div class="bg-blue-50 border border-blue-200 text-blue-700 p-4 rounded mb-6">
       <p class="font-semibold mb-2">Yêu cầu file nhập vào:</p>
       <ul class="list-disc list-inside text-sm">
-        <li>File <strong>Danh sách tổng</strong> (.xlsx) chứa cột: <code>RollNumber</code>, <code>SubjectCode</code>, 
-            <code>GroupName</code>, <code>FullName</code>, <code>SlotType</code>.</li>
-        <li>Folder hoặc nhiều file <strong>Templates</strong> (.xlsx), mỗi file bắt đầu bằng mã môn 
-            (ví dụ <code>BDI302C_FE.xlsx</code>), trong sheet có cột <code>Login</code> &amp; <code>Mark(10)</code>.</li>
+        <li>File <strong>Điểm gốc</strong> (.xlsx) chứa cột: <code>RollNumber</code>, <code>SubjectCode</code>, <code>GroupName</code>, <code>FullName</code>, <code>SlotType</code>.</li>
+        <li>Folder hoặc nhiều file <strong>Templates</strong> (.xlsx), mỗi file phải có trong sheet cột <code>Exam Code</code>, <code>Login</code> &amp; <code>Mark(10)</code>.</li>
       </ul>
     </div>
 
-    <!-- Cảnh báo thiếu/thừa template -->
+    <!-- Client‐side warnings -->
+    <template x-if="invalidFiles.length">
+      <div class="bg-red-100 text-red-700 p-3 rounded mb-4">
+        File không hợp lệ (thiếu Exam Code/Login/Mark): 
+        <span x-text="invalidFiles.join(', ')"></span>
+      </div>
+    </template>
     <template x-if="missingCodes.length">
       <div class="bg-yellow-100 text-yellow-800 p-3 rounded mb-4">
-        Thiếu File excel cho môn: <span x-text="missingCodes.join(', ')"></span>
+        Thiếu template cho mã môn: 
+        <span x-text="missingCodes.join(', ')"></span>
       </div>
     </template>
     <template x-if="extraCodes.length">
       <div class="bg-yellow-100 text-yellow-800 p-3 rounded mb-4">
-        File excel thừa: <span x-text="extraCodes.join(', ')"></span>
+        Template thừa cho mã môn: 
+        <span x-text="extraCodes.join(', ')"></span>
       </div>
     </template>
-
-    <!-- Lỗi client-side -->
     <template x-if="error">
       <div class="bg-red-100 text-red-700 p-3 rounded mb-4" x-text="error"></div>
     </template>
 
-    <!-- Form -->
+    <!-- Upload and submit -->
     <div class="space-y-6">
-
+      <!-- 1) Raw Exam picker -->
       <div class="flex">
-        <button
-          type="button"
-          @click="$refs.raw.click()"
-          :class="rawLoaded ? 'bg-green-500' : 'bg-blue-500'"
-          class="flex-1 text-white py-2 px-4 rounded hover:opacity-90 transition"
-        >
-          <span x-text="rawLoaded ? 'Thay file: '+rawName : 'Tải file Tổng(.xlsx)'"></span>
+        <button type="button"
+                @click="$refs.raw.click()"
+                :class="rawLoaded ? 'bg-green-500' : 'bg-blue-500'"
+                class="flex-1 text-white py-2 px-4 rounded hover:opacity-90 transition">
+          <span x-text="rawLoaded ? 'Thay file: ' + rawName : 'Tải file Điểm Gốc (.xlsx)'"></span>
         </button>
-        <input x-ref="raw"
-               type="file"
-               accept=".xlsx"
-               class="hidden"
-               @change="onRawChange"/>
+        <input x-ref="raw" type="file" accept=".xlsx" class="hidden" @change="onRawChange"/>
       </div>
 
-      <!-- 2) Picker Templates -->
+      <!-- 2) Templates pickers -->
       <div class="space-y-2">
         <div class="flex space-x-2">
-          <button
-            type="button"
-            @click="$refs.folder.click()"
-            :class="'flex-1 text-white py-2 px-4 rounded hover:opacity-90 transition ' 
-                    + (templates.length ? 'bg-green-500' : 'bg-blue-500')"
-          >
+          <button type="button"
+                  @click="$refs.folder.click()"
+                  :class="'flex-1 text-white py-2 px-4 rounded hover:opacity-90 transition ' +
+                          (templates.length ? 'bg-green-500' : 'bg-blue-500')">
             <span x-text="templates.length
-                        ? 'Chọn thư mục ('+templates.length+' file)'
-                        : 'Chọn thư mục Templates'"></span>
+                          ? 'Chọn thư mục (' + templates.length + ' file)'
+                          : 'Chọn thư mục Templates'"></span>
           </button>
-          <button
-            type="button"
-            @click="$refs.extra.click()"
-            :class="'flex-1 text-white py-2 px-4 rounded hover:opacity-90 transition ' 
-                    + (extraFiles.length ? 'bg-green-500' : 'bg-blue-500')"
-          >
-            <span x-text="extraFiles.length
-                        ? 'Thêm file ('+extraFiles.length+')'
-                        : 'Chọn thêm file Excel'"></span>
+          <button type="button"
+                  @click="$refs.extra.click()"
+                  :class="'flex-1 text-white py-2 px-4 rounded hover:opacity-90 transition ' +
+                          (templates.length ? 'bg-green-500' : 'bg-blue-500')">
+            <span x-text="templates.length
+                          ? 'Thêm file (' + templates.length + ')'
+                          : 'Chọn thêm file Templates'"></span>
           </button>
         </div>
+        <input x-ref="folder" type="file" accept=".xlsx" webkitdirectory directory multiple class="hidden"
+               @change="handleFiles($event.target.files)"/>
+        <input x-ref="extra"  type="file" accept=".xlsx" multiple class="hidden"
+               @change="handleFiles($event.target.files)"/>
 
-        <input x-ref="folder"
-               type="file"
-               accept=".xlsx"
-               webkitdirectory directory
-               multiple
-               class="hidden"
-               @change="onFolderChange"/>
-        <input x-ref="extra"
-               type="file"
-               accept=".xlsx"
-               multiple
-               class="hidden"
-               @change="onExtraChange"/>
-
-        <!-- Danh sách file đã chọn -->
+        <!-- List of picked templates -->
         <template x-if="templates.length">
           <div class="border border-gray-300 rounded p-2 max-h-40 overflow-auto">
-            <template x-for="(f,i) in templates" :key="i">
+            <template x-for="(t,i) in templates" :key="i">
               <div class="flex justify-between items-center py-1">
-                <span class="text-sm" x-text="f.name"></span>
-                <button type="button" @click="remove(i)" class="text-red-600 hover:text-red-800">&times;</button>
+                <span class="text-sm">
+                  <strong x-text="t.code || '—'"></strong> — 
+                  <span x-text="t.name"></span>
+                </span>
+                <button type="button" class="text-red-600 hover:text-red-800" @click="remove(i)">&times;</button>
               </div>
             </template>
           </div>
         </template>
       </div>
 
-      <!--  sẵn sàng -->
-      <template x-if="rawLoaded && templates.length">
+      <!-- 3) Ready banner -->
+      <template x-if="rawLoaded && templates.length && !invalidFiles.length">
         <div class="bg-green-100 text-green-800 p-3 rounded mb-4 flex items-center">
-          <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
-            <path fill-rule="evenodd" 
-                  d="M16.707 5.293a1 1 0 01.083 1.32l-.083.094L8 15l-4.707-4.707a1 1 0 011.32-1.497l.094.083L8 12.586l7.293-7.293a1 1 0 011.414 0z" 
-                  clip-rule="evenodd"/>
-          </svg>
-          Đã sẵn sàng! Bạn có thể nhấn “Tạo file kết quả”.
+          ✔ Đã sẵn sàng! Nhấn “Tạo file kết quả” để merge.
         </div>
       </template>
 
-      <!-- 4) Nút xử lý -->
-      <button
-        type="button"
+      <!-- 4) Submit button -->
+      <button         type="button"
         @click="submit()"
         :disabled="!rawLoaded || !templates.length"
         :class="(!rawLoaded || !templates.length)
@@ -145,11 +125,13 @@
         rawName: '',
         summaryCodes: [],
         templates: [],
-        extraFiles: [],
         error: '',
 
-        get templateCodes() {
-          return this.templates.map(f => f.name.split('_')[0].toUpperCase());
+        get templateCodes() { 
+          return this.templates.map(t => t.code).filter(c => c);
+        },
+        get invalidFiles() {
+          return this.templates.filter(t => !t.code).map(t => t.name);
         },
         get missingCodes() {
           return this.summaryCodes.filter(c => !this.templateCodes.includes(c));
@@ -167,64 +149,103 @@
           reader.onload = ev => {
             const data = new Uint8Array(ev.target.result);
             const wb = XLSX.read(data, { type: "array" });
-            const codes = new Set();
+            const set = new Set();
             wb.SheetNames.forEach(name => {
-              const ws = wb.Sheets[name];
-              const aoa = XLSX.utils.sheet_to_json(ws, { header:1 });
-              const header = aoa[0].map(h => String(h).trim());
-              const idx = header.findIndex(h => h === "SubjectCode");
+              const aoa = XLSX.utils.sheet_to_json(wb.Sheets[name], { header:1 });
+              const idx = aoa[0].map(h => String(h).trim()).indexOf("SubjectCode");
               if (idx >= 0) {
-                aoa.slice(1).forEach(r => {
-                  if (r[idx]) codes.add(String(r[idx]).trim().toUpperCase());
-                });
+                aoa.slice(1).forEach(r => r[idx] && set.add(String(r[idx]).trim().toUpperCase()));
               }
             });
-            this.summaryCodes = Array.from(codes);
+            this.summaryCodes = Array.from(set);
           };
           reader.readAsArrayBuffer(f);
         },
 
-        onFolderChange(e) {
-          Array.from(e.target.files).forEach(f => this.addFile(f));
-        },
-        onExtraChange(e) {
-          Array.from(e.target.files).forEach(f => this.addFile(f));
-          this.extraFiles = Array.from(e.target.files);
-        },
-        addFile(file) {
-          if (!this.templates.find(f => f.name === file.name)) {
-            this.templates.push(file);
+        async handleFiles(fileList) {
+          for (let f of Array.from(fileList)) {
+            if (!f.name.toLowerCase().endsWith('.xlsx')) continue;
+            if (this.templates.some(t => t.name === f.name)) continue;
+            const code = await this.extractExamCode(f);
+            this.templates.push({ file: f, name: f.name, code });
           }
         },
+
+        extractExamCode(file) {
+          return new Promise(resolve => {
+            const rd = new FileReader();
+            rd.onload = ev => {
+              let found = null;
+              try {
+                const wb = XLSX.read(new Uint8Array(ev.target.result), { type: "array" });
+                wb.SheetNames.some(name => {
+                  const aoa = XLSX.utils.sheet_to_json(wb.Sheets[name], { header:1 });
+                  const idx = aoa[0].map(h => String(h).trim()).indexOf("Exam Code");
+                  if (idx >= 0) {
+                    const vals = aoa.slice(1).map(r => r[idx]).filter(v => v);
+                    if (vals.length) {
+                      const raw = String(vals[0]).trim().toUpperCase();
+                      found = raw.split(/[^A-Z0-9]/)[0];
+                      return true;
+                    }
+                  }
+                });
+              } catch {}
+              resolve(found);
+            };
+            rd.onerror = () => resolve(null);
+            rd.readAsArrayBuffer(file);
+          });
+        },
+
         remove(i) {
-          this.templates.splice(i,1);
+          this.templates.splice(i, 1);
         },
 
         submit() {
+           console.log('👉 submit() fired', {
+            rawLoaded: this.rawLoaded,
+            templates: this.templates.length,
+            // nếu bạn có invalidFiles, log luôn để xem
+          invalidCount: this.invalidFiles?.length
+        });
           if (!this.rawLoaded) {
-            this.error = 'Vui lòng chọn file Tổng';
+            this.error = 'Vui lòng chọn file Điểm Gốc';
             return;
           }
           if (!this.templates.length) {
             this.error = 'Vui lòng chọn ít nhất một file Templates';
             return;
           }
+          if (this.invalidFiles.length) {
+            this.error = 'Một số file template không hợp lệ';
+            return;
+          }
           this.error = '';
-          const form = new FormData();
-          form.append('raw_exam', this.$refs.raw.files[0]);
-          this.templates.forEach(f => form.append('templates', f));
-          fetch('/', { method:'POST', body: form })
+          const fd = new FormData();
+          fd.append('raw_exam', this.$refs.raw.files[0]);
+          this.templates.forEach(t => fd.append('templates', t.file));
+
+          fetch('/', { method: 'POST', body: fd  })
             .then(r => {
-              if (!r.ok) throw new Error("Server error");
+              if (!r.ok) throw new Error('Server error');
               return r.blob();
             })
             .then(blob => {
               const url = URL.createObjectURL(blob);
               const a = document.createElement('a');
-              a.href = url; a.download = 'FE_Merge.zip'; a.click();
+              a.href = url;
+              a.download = 'FE_Merge.zip';
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
               URL.revokeObjectURL(url);
             })
-            .catch(() => { this.error = 'Lỗi khi tạo file'; });
+            .catch(err => {
+              console.error(err);
+              this.error = 'Lỗi khi tạo file';
+            });
+           
         }
       }
     }
