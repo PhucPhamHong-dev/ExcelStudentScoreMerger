@@ -52,6 +52,7 @@ def index():
                 continue
 
             tpl_path = os.path.join(workdir, tpl.filename)
+            os.makedirs(os.path.dirname(tpl_path), exist_ok=True)
             tpl.save(tpl_path)
 
             # process_template now takes file paths as input
